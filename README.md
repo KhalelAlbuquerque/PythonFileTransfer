@@ -26,5 +26,5 @@ python ./server.py
 
 2. No terceiro terminal inicie a interface do cliente:
 ```bash
-python ./terminal.py
+python ./interface.py
 ```
