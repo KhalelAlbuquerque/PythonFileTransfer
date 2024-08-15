@@ -22,8 +22,11 @@ class FileServer:
     def download_file(self, ref_name):
         file_info = self.files.get(ref_name, None)
         if file_info is None:
-            return "File not found."  
-        return file_info['data']  
+            return "File not found."
+        print(
+            # Linha de depuração para confirmar o tipo de dados
+            f"Returning data for: {ref_name}, Data Type: {type(file_info['data'])}")
+        return file_info['data']
 
     def register_interest(self, ref_name, client_proxy, duration):
         if ref_name not in self.interests:
