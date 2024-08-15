@@ -144,33 +144,67 @@ class FileTransferApp:
         self.update_upload_button_state()
 
     def upload_file(self):
-        if (not self.is_connected):
+        if not self.is_connected:
             messagebox.showerror("Connection error", "Please connect to server before using the system")
             return
-        if self.selected_file_path:
-            ref_name = self.ref_name_entry.get()
-            if not ref_name:
-                messagebox.showerror("Upload Error", "Reference name cannot be empty.")
-                return
 
-            existing_files = self.server.list_files()
-            if ref_name in existing_files:
-                messagebox.showerror("Upload Error", "A file with this reference name already exists.")
-                return
+        # Esta função será executada em uma thread separada
+        def do_upload():
+            if self.selected_file_path:
+                ref_name = self.ref_name_entry.get()
+                if not ref_name:
+                    messagebox.showerror("Upload Error", "Reference name cannot be empty.")
+                    return
 
-            file_name = self.selected_file_path.split("/")[-1]
-            with open(self.selected_file_path, "rb") as f:
-                file_data = f.read()
+                existing_files = self.server.list_files()
+                if ref_name in existing_files:
+                    messagebox.showerror("Upload Error", "A file with this reference name already exists.")
+                    return
 
-            if len(file_data) > 1 * 1024 * 1024:
-                messagebox.showerror("Upload Error", "File size exceeds 1MB limit.")
-                return
+                file_name = self.selected_file_path.split("/")[-1]
+                with open(self.selected_file_path, "rb") as f:
+                    file_data = f.read()
 
-            response = self.server.upload_file(ref_name, file_name, file_data)
-            messagebox.showinfo("Upload", response)
+                if len(file_data) > 1 * 1024 * 1024:
+                    messagebox.showerror("Upload Error", "File size exceeds 1MB limit.")
+                    return
 
-            self.ref_name_entry.delete(0, tk.END)
-            self.remove_selected_file()
+                response = self.server.upload_file(ref_name, file_name, file_data)
+                messagebox.showinfo("Upload", response)
+
+                self.ref_name_entry.delete(0, tk.END)
+                self.remove_selected_file()
+
+        # nova thread para executar `do_upload`
+        upload_thread = threading.Thread(target=do_upload)
+        upload_thread.start()
+
+        # código original
+        # if self.selected_file_path:
+        #     ref_name = self.ref_name_entry.get()
+        #     if not ref_name:
+        #         messagebox.showerror("Upload Error", "Reference name cannot be empty.")
+        #         return
+        #
+        #     existing_files = self.server.list_files()
+        #     if ref_name in existing_files:
+        #         messagebox.showerror("Upload Error", "A file with this reference name already exists.")
+        #         return
+        #
+        #     file_name = self.selected_file_path.split("/")[-1]
+        #     with open(self.selected_file_path, "rb") as f:
+        #         file_data = f.read()
+        #
+        #     if len(file_data) > 1 * 1024 * 1024:
+        #         messagebox.showerror("Upload Error", "File size exceeds 1MB limit.")
+        #         return
+        #
+        #     response = self.server.upload_file(ref_name, file_name, file_data)
+        #     messagebox.showinfo("Upload", response)
+        #
+        #     self.ref_name_entry.delete(0, tk.END)
+        #     self.remove_selected_file()
+
 
     def delete_file(self):
         if (not self.is_connected):
@@ -225,24 +259,29 @@ class FileTransferApp:
             messagebox.showinfo("Interests", f"Current interests:\n{formatted_interests}")
 
     def download_file(self):
-        if (not self.is_connected):
+        if not self.is_connected:
             messagebox.showerror("Connection error", "Please connect to server before using the system")
             return
-        ref_name = self.ref_name_entry.get()
-        if self.server and ref_name:
-            file_content = self.server.download_file(ref_name)
 
+        ref_name = self.download_ref_name_entry.get()
+        if not ref_name:
+            messagebox.showerror("Download Error", "Reference name cannot be empty.")
+            return
+
+        try:
+            file_content = self.server.download_file(ref_name)
+            print(f"Received content type: {type(file_content)}")  # Linha de depuração
             if isinstance(file_content, str) and file_content == "File not found.":
                 messagebox.showerror("Download Error", file_content)
-            else:
-                if isinstance(file_content, dict) and file_content.get('encoding') == 'base64':
-                    file_data = base64.b64decode(file_content['data'])
-                else:
-                    file_data = file_content
-
+            elif isinstance(file_content, bytes):
                 with open(ref_name, "wb") as f:
-                    f.write(file_data)
+                    f.write(file_content)
                 messagebox.showinfo("Download", f"{ref_name} downloaded successfully.")
+            else:
+                messagebox.showerror("Download Error", "Unexpected data type received.")
+        except Exception as e:
+            messagebox.showerror("Download Error", f"An error occurred: {e}")
+
 
 def run_interface():
     root = tk.Tk()
