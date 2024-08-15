@@ -14,16 +14,17 @@ pip install -r requirements.txt
 Este projeto requer a execução de três processos em paralelo. Para isso, abra três terminais na pasta do projeto:
 
 1. No primeiro terminal inicie o serviço de nomes do Pyro4:
-<br>
-```python -m Pyro4.naming```
-<br>
+```bash
+python -m Pyro4.naming
+```
+
 
 2. No segundo terminal inicie o servidor:
-<br>
-```python ./server.py```
-<br>
+```bash
+python ./server.py
+```
 
 2. No terceiro terminal inicie a interface do cliente:
-<br>
-```python ./terminal.py```
-<br>
+```bash
+python ./terminal.py
+```
