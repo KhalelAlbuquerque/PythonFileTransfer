@@ -3,6 +3,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, filedialog
 import base64
+import os
 
 @Pyro4.expose
 class FileClient:
@@ -44,7 +45,8 @@ class FileTransferApp:
         self.selected_file_label = tk.Label(file_frame, text="", fg="blue")
         self.selected_file_label.pack(side="left", padx=5)
 
-        self.remove_file_button = tk.Button(file_frame, text="Remove File", command=self.remove_selected_file, state="disabled")
+        self.remove_file_button = tk.Button(file_frame, text="Remove File", command=self.remove_selected_file,
+                                            state="disabled")
         self.remove_file_button.pack(side="left", padx=5)
 
         self.upload_button = tk.Button(file_frame, text="Upload File", command=self.upload_file, state="disabled")
@@ -92,9 +94,7 @@ class FileTransferApp:
         self.list_interests_button = tk.Button(list_frame, text="List Interests", command=self.list_interests)
         self.list_interests_button.pack(fill="x", pady=5)
 
-
     def update_upload_button_state(self, event=None):
-
         ref_name = self.ref_name_entry.get()
         if ref_name and self.selected_file_path:
             self.upload_button.config(state="normal")
@@ -125,7 +125,7 @@ class FileTransferApp:
             messagebox.showerror("Error", f"Failed to connect to server: {e}")
 
     def select_file(self):
-        if (not self.is_connected):
+        if not self.is_connected:
             messagebox.showerror("Connection error", "Please connect to server before using the system")
             return
         self.selected_file_path = filedialog.askopenfilename()
@@ -135,7 +135,7 @@ class FileTransferApp:
         self.update_upload_button_state()
 
     def remove_selected_file(self):
-        if (not self.is_connected):
+        if not self.is_connected:
             messagebox.showerror("Connection error", "Please connect to server before using the system")
             return
         self.selected_file_path = None
@@ -148,7 +148,6 @@ class FileTransferApp:
             messagebox.showerror("Connection error", "Please connect to server before using the system")
             return
 
-        # Esta função será executada em uma thread separada
         def do_upload():
             if self.selected_file_path:
                 ref_name = self.ref_name_entry.get()
@@ -175,39 +174,11 @@ class FileTransferApp:
                 self.ref_name_entry.delete(0, tk.END)
                 self.remove_selected_file()
 
-        # nova thread para executar `do_upload`
         upload_thread = threading.Thread(target=do_upload)
         upload_thread.start()
 
-        # código original
-        # if self.selected_file_path:
-        #     ref_name = self.ref_name_entry.get()
-        #     if not ref_name:
-        #         messagebox.showerror("Upload Error", "Reference name cannot be empty.")
-        #         return
-        #
-        #     existing_files = self.server.list_files()
-        #     if ref_name in existing_files:
-        #         messagebox.showerror("Upload Error", "A file with this reference name already exists.")
-        #         return
-        #
-        #     file_name = self.selected_file_path.split("/")[-1]
-        #     with open(self.selected_file_path, "rb") as f:
-        #         file_data = f.read()
-        #
-        #     if len(file_data) > 1 * 1024 * 1024:
-        #         messagebox.showerror("Upload Error", "File size exceeds 1MB limit.")
-        #         return
-        #
-        #     response = self.server.upload_file(ref_name, file_name, file_data)
-        #     messagebox.showinfo("Upload", response)
-        #
-        #     self.ref_name_entry.delete(0, tk.END)
-        #     self.remove_selected_file()
-
-
     def delete_file(self):
-        if (not self.is_connected):
+        if not self.is_connected:
             messagebox.showerror("Connection error", "Please connect to server before using the system")
             return
         ref_name = self.delete_ref_name_entry.get()
@@ -221,7 +192,7 @@ class FileTransferApp:
         self.delete_ref_name_entry.delete(0, tk.END)
 
     def register_interest(self):
-        if (not self.is_connected):
+        if not self.is_connected:
             messagebox.showerror("Connection error", "Please connect to server before using the system")
             return
         ref_name = self.interest_ref_name_entry.get()
@@ -231,7 +202,7 @@ class FileTransferApp:
         self.interest_ref_name_entry.delete(0, tk.END)
 
     def cancel_interest(self):
-        if (not self.is_connected):
+        if not self.is_connected:
             messagebox.showerror("Connection error", "Please connect to server before using the system")
             return
         ref_name = self.interest_ref_name_entry.get()
@@ -241,16 +212,16 @@ class FileTransferApp:
         self.interest_ref_name_entry.delete(0, tk.END)
 
     def list_files(self):
-        if (not self.is_connected):
+        if not self.is_connected:
             messagebox.showerror("Connection error", "Please connect to server before using the system")
             return
         if self.server:
             files = self.server.list_files()
             formatted_files = "\n".join([f"Reference Name: {ref}, File Name: {name}" for ref, name in files.items()])
-            messagebox.showinfo("Files", f"Available files:\n{formatted_files}")
+            messagebox.showinfo("Files", f"Available files\n{formatted_files}")
 
     def list_interests(self):
-        if (not self.is_connected):
+        if not self.is_connected:
             messagebox.showerror("Connection error", "Please connect to server before using the system")
             return
         if self.server:
@@ -268,20 +239,33 @@ class FileTransferApp:
             messagebox.showerror("Download Error", "Reference name cannot be empty.")
             return
 
-        try:
-            file_content = self.server.download_file(ref_name)
-            print(f"Received content type: {type(file_content)}")  # Linha de depuração
-            if isinstance(file_content, str) and file_content == "File not found.":
-                messagebox.showerror("Download Error", file_content)
-            elif isinstance(file_content, bytes):
-                with open(ref_name, "wb") as f:
-                    f.write(file_content)
-                messagebox.showinfo("Download", f"{ref_name} downloaded successfully.")
-            else:
-                messagebox.showerror("Download Error", "Unexpected data type received.")
-        except Exception as e:
-            messagebox.showerror("Download Error", f"An error occurred: {e}")
+        def do_download():
+            try:
+                response = self.server.download_file(ref_name)
 
+                if isinstance(response, dict):
+                    data = response.get('data')
+                    encoding = response.get('encoding')
+                    if encoding == 'base64' and data:
+                        try:
+                            file_data = base64.b64decode(data)
+                            file_path = os.path.join(os.getcwd(), ref_name)
+                            with open(file_path, "wb") as file:
+                                file.write(file_data)
+                            self.download_ref_name_entry.delete(0, tk.END)
+                            self.root.after(0, lambda: messagebox.showinfo("Download", f"{ref_name} downloaded successfully."))
+                        except Exception as e:
+                            self.root.after(0, lambda: messagebox.showerror("Download Error", f"Failed to decode base64 data: {e}"))
+                    else:
+                        self.root.after(0, lambda: messagebox.showerror("Download Error", "Unexpected encoding or data missing."))
+                else:
+                    self.root.after(0, lambda: messagebox.showerror("Download Error", "Unexpected response format."))
+
+            except Exception as e:
+                self.root.after(0, lambda: messagebox.showerror("Download Error", f"An error occurred: {e}"))
+
+        download_thread = threading.Thread(target=do_download)
+        download_thread.start()
 
 def run_interface():
     root = tk.Tk()
